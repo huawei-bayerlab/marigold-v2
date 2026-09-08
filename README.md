@@ -129,10 +129,73 @@ resolution.
 
 ## Evaluation
 
-The evaluation datasets are repackaged from Marigold V1 and download with
+Download the depth and surface-normal benchmarks separately using the instructions
+below; `scripts/download_assets.py` does not download these evaluation datasets.
+Run these commands from the repository root. They use `assets/` by default, or
+`$DEPTH_ASSETS_DIR` when set, matching the evaluation launchers.
+
+For **depth** estimation, download the
+[Marigold evaluation datasets](https://share.phys.ethz.ch/~pf/bingkedata/marigold/evaluation_dataset/)
+and extract each tar archive into its containing directory:
 
 ```bash
-python scripts/download_assets.py --skip-training-data   # adds the depth and normals benchmarks
+(
+  set -e
+  mkdir -p "${DEPTH_ASSETS_DIR:-assets}/datasets/marigold_depth_eval"
+  cd "${DEPTH_ASSETS_DIR:-assets}/datasets/marigold_depth_eval"
+  wget -r -np -nH --cut-dirs=4 -R "index.html*" -P . https://share.phys.ethz.ch/~pf/bingkedata/marigold/evaluation_dataset/
+  find . -type f -name '*.tar' -print0 | while IFS= read -r -d '' archive; do
+    tar -xf "$archive" -C "$(dirname "$archive")"
+  done
+)
+```
+
+For **normal** estimation, create the destination directory and download the
+official Marigold evaluation archive:
+
+```bash
+NORMALS_ROOT="${DEPTH_ASSETS_DIR:-assets}/datasets/marigold_normals_eval"
+mkdir -p "$NORMALS_ROOT"
+(
+  set -e
+  cd "$NORMALS_ROOT"
+  wget -O evaluation_dataset.zip \
+    https://share.phys.ethz.ch/~pf/bingkedata/marigold/marigold_normals/evaluation_dataset.zip
+  unzip -n evaluation_dataset.zip
+)
+```
+
+Download the preprocessed Sintel benchmark separately into the same directory,
+then extract it:
+
+```bash
+(
+  set -e
+  cd "$NORMALS_ROOT"
+  wget -O sintel.zip \
+    https://share.phys.ethz.ch/~pf/bingkedata/marigold/marigold_normals/sintel.zip
+  unzip -n sintel.zip
+)
+```
+
+Both archives should extract directly under `marigold_normals_eval/`; do not
+add another enclosing directory. The dataset directories must sit directly
+under the benchmark root as shown below (downloaded archives can remain):
+
+```text
+assets/                         # or $DEPTH_ASSETS_DIR
+└── datasets/
+    ├── marigold_depth_eval/
+    │   ├── diode/
+    │   ├── eth3d/
+    │   ├── kitti/
+    │   ├── nyuv2/
+    │   └── scannet/
+    └── marigold_normals_eval/
+        ├── ibims/ibims/
+        ├── nyuv2/test/
+        ├── scannet/
+        └── sintel/
 ```
 
 Each launcher below writes predictions and metrics under `output/eval_runs/` and
@@ -164,8 +227,6 @@ bash evaluation/depth_see/run_hypersim_origres_edge_eval.sh        # SEE_1,3,5,7
 **Surface normals** on NYUv2, ScanNet, iBims-1, and Sintel:
 
 ```bash
-python scripts/download_assets.py
-bash scripts/hypersim_normals/download_and_preprocess_hypersim_normals.sh
 bash evaluation/normals/run_qwen_normals_infer_and_eval.sh        # mean angular error / % within 11.25°
 ```
 
@@ -201,7 +262,7 @@ terms on the [model page](https://huggingface.co/facebook/dinov3-vitb16-pretrain
 then `hf auth login`):
 
 ```bash
-python scripts/download_assets.py --include-dinov3          # everything: checkpoints, DINOv3, training and evaluation data
+python scripts/download_assets.py --include-dinov3          # checkpoints, DINOv3, and training data
 python scripts/download_assets.py --include-layereddepth-syn --skip-checkpoints   # optional; downloads and prepares LayeredDepth-Syn
 bash scripts/hypersim_normals/download_and_preprocess_hypersim_normals.sh          # optional, ~1.2 TB, for normals
 bash scripts/hypersim_albedo/download_and_preprocess_hypersim_albedo.sh            # optional, ~500 GB, for albedo
@@ -297,7 +358,7 @@ assets/                  downloads (git-ignored) plus tracked example images
 |---|---|
 | `CUDA out of memory` | Inference needs about 17 GB at 1024² and 29 GB at 2048². Reduce `--width` and `--height`; both must stay multiples of 16. |
 | The same image gives slightly different predictions | The VAE encoder samples its latent. Pass `--seed` to make runs reproducible. |
-| A config cannot find a dataset or a checkpoint | Point `DEPTH_ASSETS_DIR` at your assets folder, or download the assets with `python scripts/download_assets.py`. |
+| A config cannot find a dataset or a checkpoint | Point `DEPTH_ASSETS_DIR` at your assets folder. Download checkpoints and training data with `python scripts/download_assets.py`; for depth and normals benchmarks, follow [Evaluation](#evaluation). |
 
 ## Contributing
 

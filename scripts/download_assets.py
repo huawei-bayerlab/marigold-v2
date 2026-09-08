@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Download models, checkpoints, prompt embeddings, and datasets into assets/.
+"""Download models, checkpoints, prompt embeddings, and training datasets into assets/.
 
 Resumable: existing files are skipped, partial downloads continue, and tar
 shards are extracted in place (and deleted unless --keep-archives).
+For depth and normals evaluation datasets, follow the README evaluation instructions.
 """
 
 from __future__ import annotations
@@ -66,12 +67,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-datasets",
         action="store_true",
-        help="Skip dataset snapshots and extraction.",
+        help="Skip all training dataset downloads, extraction, and preparation.",
     )
     parser.add_argument(
         "--skip-training-data",
         action="store_true",
-        help="Download evaluation datasets but skip the Hypersim training dataset.",
+        help="Skip the Hypersim training dataset; other dataset downloads are unchanged.",
     )
     parser.add_argument(
         "--skip-checkpoints",
@@ -526,16 +527,6 @@ def main() -> None:
             repo_type="dataset",
             watchdog=True,
         )
-        _download_snapshot(
-            "obukhovai/marigold_depth_eval",
-            datasets / "marigold_depth_eval",
-            repo_type="dataset",
-        )
-        _download_snapshot(
-            "obukhovai/marigold_normals_eval",
-            datasets / "marigold_normals_eval",
-            repo_type="dataset",
-        )
         if args.include_layereddepth_syn:
             layereddepth_root = datasets / "LayeredDepth-Syn"
             _download_snapshot(
@@ -551,9 +542,6 @@ def main() -> None:
                     datasets / "marigold_train", keep_archives=args.keep_archives
                 )
             _extract_archives(datasets / "vkitti2", keep_archives=args.keep_archives)
-            _extract_archives(
-                datasets / "marigold_depth_eval", keep_archives=args.keep_archives
-            )
 
     print(f"[done] Assets are available under {assets}", flush=True)
 
