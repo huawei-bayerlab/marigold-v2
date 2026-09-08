@@ -97,7 +97,6 @@ def _prepare_runtime_cfg(output_dir: str, device: torch.device) -> None:
                 "marigoldv2.dataset.dataloading.transform",
                 "marigoldv2.dataset.manifest.manifest",
                 "marigoldv2.dataset.manifest.manifest_transforms",
-                "marigoldv2.dataset.util",
                 "marigoldv2.validation.validate_steps",
             ],
             "paths": {"override_vis_dir": output_dir},
