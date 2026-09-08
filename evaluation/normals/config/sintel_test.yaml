@@ -1,0 +1,4 @@
+name: sintel_normals
+disp_name: sintel_normals_test
+dir: sintel
+filenames: evaluation/data_split/sintel_normals/sintel_filtered.txt

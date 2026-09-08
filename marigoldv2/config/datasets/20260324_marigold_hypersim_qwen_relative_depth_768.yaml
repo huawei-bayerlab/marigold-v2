@@ -1,0 +1,161 @@
+marigold_hypersim_train_rel_depth_qwen_768:
+  name: GenericDataset
+  disp_name: marigold_hypersim_train_rel_depth_qwen_768
+  sampling_weight: 0.9
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadMarigoldHypersimManifest:
+          base_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train
+          split: train
+          skip_missing_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadDepthFileAuto:
+        depth_key: depth_path
+        output_key: depth_m
+        inverse_output_key: inv_depth_m
+        png_depth_scale: 1000.0
+        min_depth: 0.00001
+        max_depth: 65.0
+        create_inverse: true
+    - RandomHorizontalFlip:
+        p: 0.5
+        exclude_keys: []
+    - Reshape:
+        height: 576
+        width: 768
+        exclude_keys: []
+        use_lanczos: true
+    - NormalizeDepthPercentileAffine:
+        key: depth_m
+        output_key: depth_rel_m11
+        mask_key: valid_mask
+        low_percentile: 2.0
+        high_percentile: 98.0
+        dst_min: -1.0
+        dst_max: 1.0
+        invalid_fill_value: 1.0
+
+
+marigold_hypersim_val_rel_depth_qwen_768:
+  name: GenericDataset
+  disp_name: marigold_hypersim_val_rel_depth_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadMarigoldHypersimManifest:
+          base_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train
+          split: val
+          max_samples: 200
+          seed: 42
+          skip_missing_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadDepthFileAuto:
+        depth_key: depth_path
+        output_key: depth_m
+        inverse_output_key: inv_depth_m
+        png_depth_scale: 1000.0
+        min_depth: 0.00001
+        max_depth: 65.0
+        create_inverse: true
+    - Reshape:
+        height: 576
+        width: 768
+        exclude_keys: []
+        use_lanczos: true
+    - NormalizeDepthPercentileAffine:
+        key: depth_m
+        output_key: depth_rel_m11
+        mask_key: valid_mask
+        low_percentile: 2.0
+        high_percentile: 98.0
+        dst_min: -1.0
+        dst_max: 1.0
+        invalid_fill_value: 1.0
+  validation_steps:
+    - RunInference: {}
+    - VisualizeRGB:
+        batch_key: rgb_norm
+        folder_name: input_rgb
+        file_path_key: rgb_path
+        value_range: [-1, 1]
+    - VisualizeDepth:
+        batch_key: out/depth_rel_pred_m11
+        folder_name: depth_rel_prediction
+        file_path_key: rgb_path
+        colormap: SPECTRAL
+    - VisualizeDepth:
+        batch_key: depth_rel_m11
+        folder_name: depth_rel_gt
+        file_path_key: rgb_path
+        colormap: SPECTRAL
+    - VisualizeDepth:
+        batch_key: valid_mask
+        folder_name: valid_mask
+        file_path_key: rgb_path
+        colormap: VIRIDIS
+    - ComputeMetrics:
+        gt_key: depth_rel_m11
+        pred_key: out/depth_rel_pred_m11
+        alignment_gt_key: depth_m
+        alignment_gt_range: native
+        mask_key: valid_mask
+        gt_range: "neg1_1"
+        pred_range: "neg1_1"
+        eval_metrics:
+          - aligned_abs_relative_difference
+          - aligned_delta1_acc
+          - aligned_delta2_acc
+          - aligned_delta3_acc
+
+
+marigold_hypersim_test_rel_depth_qwen_768:
+  name: GenericDataset
+  disp_name: marigold_hypersim_test_rel_depth_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadMarigoldHypersimManifest:
+          base_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train
+          split: test
+          skip_missing_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadDepthFileAuto:
+        depth_key: depth_path
+        output_key: depth_m
+        inverse_output_key: inv_depth_m
+        png_depth_scale: 1000.0
+        min_depth: 0.00001
+        max_depth: 65.0
+        create_inverse: true
+    - Reshape:
+        height: 576
+        width: 768
+        exclude_keys: []
+        use_lanczos: true
+    - NormalizeDepthPercentileAffine:
+        key: depth_m
+        output_key: depth_rel_m11
+        mask_key: valid_mask
+        low_percentile: 2.0
+        high_percentile: 98.0
+        dst_min: -1.0
+        dst_max: 1.0

@@ -1,0 +1,119 @@
+# LayeredDepth-Syn layer 8 with affine-normalized linear-depth supervision derived from metric depth.
+layereddepth_syn_l8_train_depth_768:
+  name: GenericDataset
+  disp_name: layereddepth_syn_l8_train_depth_768
+  sampling_weight: 1.0
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+    - LoadHypersimManifest:
+        manifest_csv: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/LayeredDepth-Syn/extracted/train/manifest_layer8.csv
+        skip_missing_files: true
+  transform:
+  - ReadRGBImage:
+      key: rgb_path
+      name: rgb
+      use_rel_dir: false
+      set_as_orig_res: true
+      save_orig: true
+  - ReadDepthFileAuto:
+      depth_key: depth_path
+      mask_key: null
+      output_key: depth_m
+      inverse_output_key: inv_depth_m
+      png_depth_scale: 1000.0
+      min_depth: 1.0e-05
+      max_depth: 65.0
+      create_inverse: true
+  - RandomHorizontalFlip:
+      p: 0.5
+      exclude_keys: []
+  - Reshape:
+      height: 576
+      width: 768
+      exclude_keys: []
+      use_lanczos: true
+  - NormalizeDepthPercentileAffine:
+      key: depth_m
+      output_key: depth_rel_m11
+      mask_key: valid_mask
+      low_percentile: 2.0
+      high_percentile: 98.0
+      dst_min: -1.0
+      dst_max: 1.0
+      invalid_fill_value: 1.0
+
+layereddepth_syn_l8_val_depth_768:
+  name: GenericDataset
+  disp_name: layereddepth_syn_l8_val_depth_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+    - LoadHypersimManifest:
+        manifest_csv: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/LayeredDepth-Syn/extracted/val/manifest_layer8.csv
+        max_samples: 12
+        seed: 42
+        skip_missing_files: true
+  transform:
+  - ReadRGBImage:
+      key: rgb_path
+      name: rgb
+      use_rel_dir: false
+      set_as_orig_res: true
+      save_orig: true
+  - ReadDepthFileAuto:
+      depth_key: depth_path
+      mask_key: null
+      output_key: depth_m
+      inverse_output_key: inv_depth_m
+      png_depth_scale: 1000.0
+      min_depth: 1.0e-05
+      max_depth: 65.0
+      create_inverse: true
+  - Reshape:
+      height: 576
+      width: 768
+      exclude_keys: []
+      use_lanczos: true
+  - NormalizeDepthPercentileAffine:
+      key: depth_m
+      output_key: depth_rel_m11
+      mask_key: valid_mask
+      low_percentile: 2.0
+      high_percentile: 98.0
+      dst_min: -1.0
+      dst_max: 1.0
+      invalid_fill_value: 1.0
+  validation_steps:
+  - RunInference: {}
+  - VisualizeRGB:
+      batch_key: rgb_norm
+      folder_name: input_rgb
+      file_path_key: rgb_path
+      value_range:
+      - -1
+      - 1
+  - VisualizeDepth:
+      batch_key: out/depth_rel_pred_m11
+      folder_name: depth_rel_prediction
+      file_path_key: rgb_path
+      colormap: SPECTRAL
+  - VisualizeDepth:
+      batch_key: depth_rel_m11
+      folder_name: depth_rel_gt
+      file_path_key: rgb_path
+      colormap: SPECTRAL
+  - ComputeMetrics:
+      gt_key: depth_rel_m11
+      pred_key: out/depth_rel_pred_m11
+      alignment_gt_key: depth_m
+      metric_depth_key: depth_m
+      depth_min: 1.0e-05
+      depth_max: 65.0
+      alignment_gt_range: native
+      mask_key: valid_mask
+      gt_range: neg1_1
+      pred_range: neg1_1
+      eval_metrics:
+      - aligned_abs_relative_difference
+      - aligned_delta1_acc

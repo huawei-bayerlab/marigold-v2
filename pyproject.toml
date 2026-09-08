@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marigold-v2"
+version = "2.0.0"
+description = "Marigold V2: Revisiting Diffusion Transformers for Monocular Depth Estimation"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "accelerate==1.13.0",
+    "bitsandbytes==0.49.2",
+    "diffusers==0.38.0",
+    "h5py>=3.10",  # Hypersim dataset builders under scripts/
+    "huggingface_hub==1.8.0",
+    "lpips==0.1.4",
+    "matplotlib==3.10.8",
+    "numpy==2.2.5",
+    "omegaconf==2.3.0",
+    "opencv-python-headless==4.13.0.92",
+    "pandas==2.3.3",
+    "peft==0.18.1",
+    "pillow==12.1.1",
+    "pyarrow==18.0",
+    "PyYAML==6.0.3",
+    "safetensors==0.8.0",
+    "scikit-image==0.25.2",
+    "scikit-learn==1.7.2",
+    "scipy==1.15.3",
+    "tabulate==0.10.0",
+    "tensorboard==2.20.0",
+    "tqdm==4.67.3",
+    "transformers==5.4.0",
+    "wandb==0.26.1",
+]
+
+[project.urls]
+Homepage = "https://hf.co/spaces/huawei-bayerlab/marigold-v2-web"
+Paper = "https://doi.org/10.1145/3842528"
+Models = "https://huggingface.co/huawei-bayerlab/marigold-v2-0"
+Demo = "https://huggingface.co/spaces/toshas/Marigold-V2"
+
+[tool.setuptools.packages.find]
+include = ["marigoldv2*", "evaluation*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]

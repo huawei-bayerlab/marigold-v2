@@ -1,0 +1,164 @@
+hypersim_train_normals_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_train_normals_qwen_768
+  sampling_weight: 1.0
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimNormalsManifest:
+          base_dir: ${oc.env:HYPERSIM_NORMALS_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_normals}
+          split: train
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadSurfaceNormalsNpy:
+        key: normal_path
+        output_key: normal_gt
+        mask_key: valid_mask
+    - RandomHorizontalFlipSurfaceNormals:
+        p: 0.5
+        normal_key: normal_gt
+        include_keys: [rgb_norm, rgb_int, normal_gt, valid_mask]
+    - ResizeRGBSurfaceNormals:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        normal_key: normal_gt
+        mask_key: valid_mask
+
+hypersim_val_normals_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_val_normals_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimNormalsManifest:
+          base_dir: ${oc.env:HYPERSIM_NORMALS_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_normals}
+          split: val
+          max_samples: 200
+          seed: 42
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadSurfaceNormalsNpy:
+        key: normal_path
+        output_key: normal_gt
+        mask_key: valid_mask
+    - ResizeRGBSurfaceNormals:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        normal_key: normal_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - ComputeNormalMetrics:
+        pred_key: out/normal_pred
+        gt_key: normal_gt
+        mask_key: valid_mask
+
+hypersim_vis_normals_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_vis_normals_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimNormalsManifest:
+          base_dir: ${oc.env:HYPERSIM_NORMALS_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_normals}
+          split: val
+          max_samples: 8
+          seed: 42
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadSurfaceNormalsNpy:
+        key: normal_path
+        output_key: normal_gt
+        mask_key: valid_mask
+    - ResizeRGBSurfaceNormals:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        normal_key: normal_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - VisualizeRGB:
+        batch_key: rgb_norm
+        folder_name: input_rgb
+        file_path_key: rgb_path
+        value_range: [-1, 1]
+    - VisualizeSurfaceNormals:
+        batch_key: normal_gt
+        mask_key: valid_mask
+        folder_name: normal_gt
+        file_path_key: rgb_path
+    - VisualizeSurfaceNormals:
+        batch_key: out/normal_pred
+        mask_key: valid_mask
+        folder_name: normal_prediction
+        file_path_key: rgb_path
+    - VisualizeNormalAngularError:
+        pred_key: out/normal_pred
+        gt_key: normal_gt
+        mask_key: valid_mask
+        folder_name: normal_angular_error
+        file_path_key: rgb_path
+        max_degrees: 90.0
+    - VisualizeNormalComparison:
+        rgb_key: rgb_norm
+        pred_key: out/normal_pred
+        gt_key: normal_gt
+        mask_key: valid_mask
+        folder_name: normal_comparison
+        file_path_key: rgb_path
+        max_degrees: 90.0
+
+hypersim_test_normals_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_test_normals_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimNormalsManifest:
+          base_dir: ${oc.env:HYPERSIM_NORMALS_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_normals}
+          split: test
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadSurfaceNormalsNpy:
+        key: normal_path
+        output_key: normal_gt
+        mask_key: valid_mask
+    - ResizeRGBSurfaceNormals:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        normal_key: normal_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - ComputeNormalMetrics:
+        pred_key: out/normal_pred
+        gt_key: normal_gt
+        mask_key: valid_mask

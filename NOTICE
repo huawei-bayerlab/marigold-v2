@@ -1,0 +1,13 @@
+Marigold V2
+Copyright 2026 Huawei Technologies Co., Ltd.
+
+This repository includes code derived from Marigold (https://github.com/prs-eth/Marigold),
+Copyright 2023-2025 Marigold Team, ETH Zürich, licensed under the Apache License, Version 2.0.
+Derived files carry both copyright notices in their headers; they live under
+evaluation/src/ and include marigoldv2/validation/metric.py, marigoldv2/util/seeding.py,
+marigoldv2/util/logging_util.py, marigoldv2/dataset/mixed_sampler.py, and
+marigoldv2/trainer/__init__.py.
+
+The evaluation protocol for the zero-shot depth benchmarks follows Pixel-Perfect Depth
+(https://github.com/gangweix/pixel-perfect-depth), and the Sintel normals protocol follows
+Lotus-2 (https://github.com/EnVision-Research/Lotus).

@@ -1,0 +1,122 @@
+vkitti2_train_inv_depth_qwen_768:
+  name: GenericDataset
+  disp_name: vkitti2_train_depth_qwen_768
+  sampling_weight: 0.1
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadVKittiManifest:
+          base_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/vkitti2
+          split: train
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadDepthFileAuto:
+        depth_key: depth_path
+        output_key: depth_m
+        inverse_output_key: inv_depth_m
+        png_depth_scale: 100.0
+        min_depth: 0.001
+        max_depth: 655.35
+        invalid_depth_max: null
+        zero_inverse_above: 600.0
+        create_inverse: true
+    - RandomHorizontalFlip:
+        p: 0.5
+        exclude_keys: []
+    - KittiBMCrop:
+        image_key: rgb
+        depth_key: depth_m
+        mask_key: valid_mask
+    - NormalizeDepthPercentileAffine:
+        key: inv_depth_m
+        output_key: inv_depth_rel_m11
+        mask_key: valid_mask
+        low_percentile: 2.0
+        high_percentile: 98.0
+        dst_min: -1.0
+        dst_max: 1.0
+        invalid_fill_value: -1.0
+
+vkitti2_val_inv_depth_qwen_768:
+  name: GenericDataset
+  disp_name: vkitti2_val_depth_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadVKittiManifest:
+          base_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/vkitti2
+          split: val
+          max_samples: 50
+          seed: 13
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadDepthFileAuto:
+        depth_key: depth_path
+        output_key: depth_m
+        inverse_output_key: inv_depth_m
+        png_depth_scale: 100.0
+        min_depth: 0.001
+        max_depth: 655.35
+        invalid_depth_max: null
+        zero_inverse_above: 600.0
+        create_inverse: true
+    - KittiBMCrop:
+        image_key: rgb
+        depth_key: depth_m
+        mask_key: valid_mask
+    - NormalizeDepthPercentileAffine:
+        key: inv_depth_m
+        output_key: inv_depth_rel_m11
+        mask_key: valid_mask
+        low_percentile: 2.0
+        high_percentile: 98.0
+        dst_min: -1.0
+        dst_max: 1.0
+        invalid_fill_value: 1.0
+  validation_steps:
+    - RunInference: {}
+    - VisualizeRGB:
+        batch_key: rgb_norm
+        folder_name: input_rgb
+        file_path_key: rgb_path
+        value_range: [-1, 1]
+    - VisualizeDepth:
+        batch_key: out/inv_depth_rel_pred_m11
+        folder_name: inv_depth_rel_prediction
+        file_path_key: rgb_path
+        colormap: SPECTRAL
+    - VisualizeDepth:
+        batch_key: inv_depth_rel_m11
+        folder_name: inv_depth_rel_gt
+        file_path_key: rgb_path
+        colormap: SPECTRAL
+    - VisualizeDepth:
+        batch_key: valid_mask
+        folder_name: valid_mask
+        file_path_key: rgb_path
+        colormap: VIRIDIS
+    - ComputeMetrics:
+        gt_key: inv_depth_rel_m11
+        pred_key: out/inv_depth_rel_pred_m11
+        alignment_gt_key: inv_depth_m
+        metric_depth_key: depth_m
+        depth_max: 80.0
+        alignment_gt_range: native
+        mask_key: valid_mask
+        gt_range: "neg1_1"
+        pred_range: "neg1_1"
+        eval_metrics:
+          - aligned_disp_abs_relative_difference
+          - aligned_disp_delta1_acc
+          - aligned_disp_delta2_acc
+          - aligned_disp_delta3_acc

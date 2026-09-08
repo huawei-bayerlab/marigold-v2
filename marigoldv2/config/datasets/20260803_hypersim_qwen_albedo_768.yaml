@@ -1,0 +1,173 @@
+hypersim_train_albedo_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_train_albedo_qwen_768
+  sampling_weight: 1.0
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimAlbedoManifest:
+          base_dir: ${oc.env:HYPERSIM_ALBEDO_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_albedo}
+          split: train
+          source_split: train
+          selection: exclude_holdout
+          holdout_samples: 200
+          seed: 42
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadRGBAlbedoNpy:
+        key: albedo_path
+        output_key: albedo_gt
+        mask_key: valid_mask
+    - RandomHorizontalFlipAlbedo:
+        p: 0.5
+        include_keys: [rgb_norm, rgb_int, albedo_gt, valid_mask]
+    - ResizeRGBAlbedo:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        albedo_key: albedo_gt
+        mask_key: valid_mask
+
+hypersim_val_albedo_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_val_albedo_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimAlbedoManifest:
+          base_dir: ${oc.env:HYPERSIM_ALBEDO_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_albedo}
+          split: val
+          source_split: train
+          selection: holdout
+          holdout_samples: 200
+          seed: 42
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadRGBAlbedoNpy:
+        key: albedo_path
+        output_key: albedo_gt
+        mask_key: valid_mask
+    - ResizeRGBAlbedo:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        albedo_key: albedo_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - ComputeAlbedoMetrics:
+        pred_key: out/albedo_pred
+        gt_key: albedo_gt
+        mask_key: valid_mask
+
+hypersim_vis_albedo_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_vis_albedo_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimAlbedoManifest:
+          base_dir: ${oc.env:HYPERSIM_ALBEDO_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_albedo}
+          split: vis
+          source_split: train
+          selection: holdout
+          holdout_samples: 200
+          max_samples: 8
+          seed: 42
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadRGBAlbedoNpy:
+        key: albedo_path
+        output_key: albedo_gt
+        mask_key: valid_mask
+    - ResizeRGBAlbedo:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        albedo_key: albedo_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - VisualizeRGB:
+        batch_key: rgb_norm
+        folder_name: input_rgb
+        file_path_key: rgb_path
+        value_range: [-1, 1]
+    - VisualizeRGBAlbedo:
+        batch_key: albedo_gt
+        mask_key: valid_mask
+        folder_name: albedo_gt
+        file_path_key: rgb_path
+    - VisualizeRGBAlbedo:
+        batch_key: out/albedo_pred
+        mask_key: valid_mask
+        folder_name: albedo_prediction
+        file_path_key: rgb_path
+    - VisualizeAlbedoAbsoluteError:
+        pred_key: out/albedo_pred
+        gt_key: albedo_gt
+        mask_key: valid_mask
+        folder_name: albedo_absolute_error
+        file_path_key: rgb_path
+        max_error: 1.0
+    - VisualizeAlbedoComparison:
+        rgb_key: rgb_norm
+        pred_key: out/albedo_pred
+        gt_key: albedo_gt
+        mask_key: valid_mask
+        folder_name: albedo_comparison
+        file_path_key: rgb_path
+        max_error: 1.0
+
+hypersim_test_albedo_qwen_768:
+  name: GenericDataset
+  disp_name: hypersim_test_albedo_qwen_768
+  manifest_cfg:
+    name: GenericManifest
+    manifest_graph:
+      - LoadHypersimAlbedoManifest:
+          base_dir: ${oc.env:HYPERSIM_ALBEDO_DATASET_DIR,${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets/marigold_train_albedo}
+          split: test
+          source_split: test
+          verify_files: true
+  transform:
+    - ReadRGBImage:
+        key: rgb_path
+        name: rgb
+        use_rel_dir: false
+        set_as_orig_res: true
+        save_orig: true
+    - ReadRGBAlbedoNpy:
+        key: albedo_path
+        output_key: albedo_gt
+        mask_key: valid_mask
+    - ResizeRGBAlbedo:
+        height: 576
+        width: 768
+        rgb_keys: [rgb_norm, rgb_int]
+        albedo_key: albedo_gt
+        mask_key: valid_mask
+  validation_steps:
+    - RunInference: {}
+    - ComputeAlbedoMetrics:
+        pred_key: out/albedo_pred
+        gt_key: albedo_gt
+        mask_key: valid_mask

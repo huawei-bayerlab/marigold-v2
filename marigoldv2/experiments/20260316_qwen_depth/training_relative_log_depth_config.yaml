@@ -1,0 +1,235 @@
+# ---- Base configs (dataset definitions) ----
+base_config:
+  - marigoldv2/config/datasets/20260413_marigold_hypersim_qwen_relative_log_depth_768.yaml
+  - marigoldv2/config/datasets/20260413_vkitti2_qwen_log_depth_768.yaml
+
+# ---- Module registration ----
+register_modules:
+  - marigoldv2.dataset.generic_dataset
+  - marigoldv2.dataset.dataloading.transform
+  - marigoldv2.dataset.manifest.manifest
+  - marigoldv2.dataset.manifest.manifest_transforms
+  - marigoldv2.validation.validate_steps
+  - marigoldv2.loss.loss
+  - marigoldv2.experiments.20260316_qwen_depth.network_graph
+  - marigoldv2.experiments.20260316_qwen_depth.component_loader
+
+# ---- Variables ----
+latent_mse_loss_weight: 1.0
+masked_l1_loss_weight: 1.0
+window_matched_l1_loss_weight: 0.0
+window_size: 5
+sinkhorn_iter: 5
+sinkhorn_tau: 0.1
+spatial_rectification_loss_weight: 5.0
+irepa_dinov3_spatial_loss_weight: 0.2
+
+# iREPA (DINOv3 feature alignment)
+irepa_dinov3_model_name: ${oc.env:DEPTH_ASSETS_DIR,./assets}/checkpoints/dinov3-vitb16-pretrain-lvd1689m
+irepa_dinov3_input_size: 224
+irepa_spatial_norm_gamma: 0.7
+irepa_token_l1_weight: 1.0
+irepa_pairwise_weight: 1.0
+irepa_max_tokens_for_pairwise: 256
+irepa_use_student_projection: true
+irepa_projection_type: conv3x3
+irepa_student_feature_dim: 64
+irepa_teacher_feature_dim: 768
+scale: 8.0
+
+# ---- Logging ----
+logging:
+  console_log: ${mul:${scale},20}
+  file_log: ${mul:${scale},10}
+
+# ---- Paths ----
+paths:
+  use_paths_from: env_paths
+  env_paths:
+    base_data_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/datasets
+    out_dir: output/train_runs
+    embed_dir: ${oc.env:DEPTH_ASSETS_DIR,./assets}/checkpoints/Marigold-V2/qwen_text_embeddings
+    ckpt_qwen_image_edit: ${oc.env:DEPTH_ASSETS_DIR,./assets}/checkpoints/Qwen-Image-Edit-2509
+
+# ---- Dataloader ----
+dataloader:
+  effective_batch_size: 1
+  max_train_batch_size: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  seed: 2025
+
+# ---- Training datasets ----
+dataset:
+  train:
+    hypersim_train_rel_log_depth_qwen_768: ${marigold_hypersim_train_rel_log_depth_qwen_768}
+    vkitti2_train_log_depth_qwen_768: ${vkitti2_train_log_depth_qwen_768}
+  val:
+    hypersim_val_rel_log_depth_qwen_768: ${marigold_hypersim_val_rel_log_depth_qwen_768}
+
+# ---- Trainer ----
+trainer:
+  name: GenericTrainer
+  dtype: torch.bfloat16
+
+# ---- Evaluation ----
+eval:
+  eval_metrics:
+    - aligned_log_abs_relative_difference
+    - aligned_log_delta1_acc
+    - aligned_log_delta2_acc
+    - aligned_log_delta3_acc
+
+validation:
+  main_val_metric: aligned_log_abs_relative_difference
+  main_val_metric_goal: minimize
+  strip_log_from_metric_names_for_logging: true
+  file_path_key: rgb_path
+
+# ---- Network components ----
+network_components:
+  - LoadQwenImageEditVAE:
+      name: VAE
+      train_decoder: false
+  - LoadQwenImageEditTransformerFlexible:
+      name: Diffuser
+
+# ---- Network graph ----
+network_graph:
+  QwenImageEncode:
+    kwargs:
+      input_key: rgb_norm
+      output_key: lat_encoding
+  QwenDepthEncode:
+    kwargs:
+      input_key: depth_rel_m11
+      output_key: lat_depth_gt
+  QwenImageEdit2509Step:
+    kwargs:
+      prefix: qwen_edit_2509_qwen_depth_realimg512
+      predict_eps: false
+      predict_vel: true
+      num_inference_steps: 1
+      guidance_scale: 1.0
+      capture_hidden_states: true
+      hidden_state_indices: [-1, -8]
+      hidden_state_key_prefix: qwen_dit_hidden_state
+  QwenImageDecode:
+    kwargs:
+      output_key: pixel_pred
+  SelectChannel:
+    kwargs:
+      input_key: pixel_pred
+      output_key: depth_rel_pred_m11
+      channel: mean
+
+# ---- Loss ----
+loss_graph:
+  MSELoss:
+    input_key: lat_encoding
+    gt_key: lat_depth_gt
+    weight: ${latent_mse_loss_weight}
+  MaskedL1Loss:
+    pred_key: out/depth_rel_pred_m11
+    gt_key: depth_rel_m11
+    mask_key: valid_mask
+    weight: ${masked_l1_loss_weight}
+  WindowMatchedL1Loss:
+    pred_key: out/depth_rel_pred_m11
+    gt_key: depth_rel_m11
+    mask_key: valid_mask
+    window_size: ${window_size}
+    sinkhorn_iter: ${sinkhorn_iter}
+    sinkhorn_tau: ${sinkhorn_tau}
+    weight: ${window_matched_l1_loss_weight}
+    dataset_names:
+      - marigold_hypersim_train_rel_depth_qwen_768  
+  MaskedL1GradientLoss:
+    pred_key: out/depth_rel_pred_m11
+    gt_key: depth_rel_m11
+    mask_key: valid_mask
+    weight: ${spatial_rectification_loss_weight}
+    dataset_names:
+      - marigold_hypersim_train_rel_log_depth_qwen_768
+      - marigold_hypersim_val_rel_log_depth_qwen_768
+      - marigold_hypersim_test_rel_log_depth_qwen_768
+  IREPADinoV3SpatialLoss:
+    pred_key: out/depth_rel_pred_m11
+    gt_key: depth_rel_m11
+    mask_key: valid_mask
+    weight: ${irepa_dinov3_spatial_loss_weight}
+    model_name: ${irepa_dinov3_model_name}
+    input_size: ${irepa_dinov3_input_size}
+    gamma: ${irepa_spatial_norm_gamma}
+    token_l1_weight: ${irepa_token_l1_weight}
+    pairwise_weight: ${irepa_pairwise_weight}
+    max_tokens_for_pairwise: ${irepa_max_tokens_for_pairwise}
+    student_feature_keys:
+      - out/qwen_dit_hidden_state_-1
+      - out/qwen_dit_hidden_state_-8
+    student_feature_weights: [1.0, 0.7]
+    use_student_projection: ${irepa_use_student_projection}
+    projection_type: ${irepa_projection_type}
+    student_feature_dim: ${irepa_student_feature_dim}
+    teacher_feature_dim: ${irepa_teacher_feature_dim}
+    projection_component_name: iREPAStudentProjector
+
+# ---- Optimization ----
+optimization:
+  max_iter: ${mul:${scale},20000}
+  max_epoch: ${mul:${scale},100000}
+  vis_period: ${mul:${scale},2000}
+  vis_points: []
+  val_period: ${mul:${scale},2000}
+  val_points: []
+  ckpt_points: ${scale_list:${scale},2000}
+
+  max_grad_norm: 1.0
+
+  scheduler:
+    name: three_phase_linear
+    total_steps: ${mul:${scale},30000}
+    base_lr: 0.00005
+    warmup_steps: ${mul:${scale},200}
+    start_factor: 0.01
+    decay_steps: ${mul:${scale},20000}
+    final_factor: 0.1
+
+  quantization:
+    level: 4bit
+    skip_modules:
+      - "transformer_blocks.0.img_mod"
+    dequantize_modules:
+      - "proj_out"
+
+  lora:
+    rank: 128
+    lora_alpha: 128
+    lora_dropout: 0.0
+    init_lora_weights: "gaussian"
+    target_modules:
+      - "img_in"
+      - "txt_in"
+      - "to_q"
+      - "to_k"
+      - "to_v"
+      - "to_out.0"
+      - "attn.add_k_proj"
+      - "attn.add_v_proj"
+      - "attn.add_q_proj"
+      - "attn.to_add_out"
+      - "norm.linear"
+      - "a_to_out"
+      - "b_to_out"
+      - "img_mlp.net.0.proj"
+      - "img_mlp.net.2"
+      - "txt_mlp.net.0.proj"
+      - "txt_mlp.net.2"
+      - "ff_a.0"
+      - "ff_a.2"
+      - "ff_b.0"
+      - "ff_b.2"
+      - "norm_out.linear"
+      - "proj_out"

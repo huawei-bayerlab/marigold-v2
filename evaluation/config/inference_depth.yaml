@@ -1,0 +1,113 @@
+base_config:
+  - marigoldv2/config/datasets/20260324_marigold_hypersim_qwen_relative_depth_768.yaml
+
+# ---- Module registration ----
+register_modules:
+  - marigoldv2.dataset.generic_dataset
+  - marigoldv2.dataset.dataloading.transform
+  - marigoldv2.dataset.manifest.manifest
+  - marigoldv2.dataset.manifest.manifest_transforms
+  - marigoldv2.validation.validate_steps
+  - marigoldv2.loss.loss
+  - marigoldv2.experiments.20260316_qwen_depth.network_graph
+  - marigoldv2.experiments.20260316_qwen_depth.component_loader
+
+# ---- Trainer (needed for dtype reference) ----
+trainer:
+  dtype: torch.bfloat16
+  name: GenericTrainer
+
+# ---- Network components ----
+network_components:
+  - LoadQwenImageEditVAE:
+      name: VAE
+  - LoadQwenImageEditTransformerFlexible:
+      name: Diffuser
+
+# ---- Network graph ----
+network_graph:
+  QwenImageEncode:
+    kwargs:
+      input_key: rgb_norm
+      output_key: lat_encoding
+  QwenImageEdit2509Step:
+    kwargs:
+      prefix: qwen_edit_2509_qwen_depth_realimg512
+      predict_eps: false
+      predict_vel: true
+      num_inference_steps: 1
+      guidance_scale: 1.0
+  QwenImageDecode:
+    kwargs:
+      output_key: pixel_pred
+  SelectChannel:
+    kwargs:
+      input_key: pixel_pred
+      output_key: depth_rel_pred_m11
+      channel: mean
+
+# ---- Dataloader ----
+dataloader:
+  num_workers: 0
+  effective_batch_size: 1
+  max_train_batch_size: 1
+  seed: 2025
+
+# ---- Validation ----
+validation:
+  file_path_key: rgb_path
+  main_val_metric: abs_relative_difference
+  main_val_metric_goal: minimize
+
+# ---- Evaluation metrics ----
+eval:
+  eval_metrics:
+    - abs_relative_difference
+    - squared_relative_difference
+    - rmse_linear
+    - rmse_log
+    - log10
+    - delta1_acc
+    - delta2_acc
+    - delta3_acc
+
+# ---- Optimization (needed for lora config reference during loading) ----
+optimization:
+  lora:
+    rank: 128
+    lora_alpha: 128
+    lora_dropout: 0.0
+    init_lora_weights: gaussian
+    target_modules:
+      - "img_in"
+      - "txt_in"
+      - "to_q"
+      - "to_k"
+      - "to_v"
+      - "to_out.0"
+      - "attn.add_k_proj"
+      - "attn.add_v_proj"
+      - "attn.add_q_proj"
+      - "attn.to_add_out"
+      - "norm.linear"
+      - "a_to_out"
+      - "b_to_out"
+      - "img_mlp.net.0.proj"
+      - "img_mlp.net.2"
+      - "txt_mlp.net.0.proj"
+      - "txt_mlp.net.2"
+      - "ff_a.0"
+      - "ff_a.2"
+      - "ff_b.0"
+      - "ff_b.2"
+      - "norm_out.linear"
+      - "proj_out"
+  scheduler:
+    base_lr: 0.0001
+  max_iter: 30000
+  max_epoch: 100000
+  vis_period: 1000
+  vis_points: []
+  val_period: 1000
+  val_points: []
+  ckpt_points: []

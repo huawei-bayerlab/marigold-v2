@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.vscode/
+.idea/
+
+# downloaded models and datasets (assets/examples, images and shields are tracked)
+/assets/*
+!/assets/examples/
+!/assets/images/
+!/assets/shields/
+
+# run outputs
+/output/
+/wandb/
+
+# tool caches
+.ruff_cache/

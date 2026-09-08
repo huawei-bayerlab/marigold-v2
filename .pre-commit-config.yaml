@@ -1,0 +1,8 @@
+# Install once per clone:  pip install pre-commit && pre-commit install
+# Pinned to the ruff version in .github/workflows/ruff.yml, so what passes here passes CI.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.11
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
