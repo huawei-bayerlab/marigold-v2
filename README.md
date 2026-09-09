@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://hf.co/spaces/huawei-bayerlab/marigold-v2-web" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/website.svg" alt="Project website"></a>&nbsp;
-  <a href="https://huggingface.co/huawei-bayerlab/marigold-v2-0/resolve/main/assets/paper/Marigold%20V2.pdf" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/paper.svg" alt="Paper"></a>&nbsp;
+  <a href="https://arxiv.org/abs/2609.08084" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/paper.svg" alt="Paper"></a>&nbsp;
   <a href="https://huggingface.co/spaces/toshas/Marigold-V2" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/demo.svg" alt="Demo"></a>&nbsp;
   <a href="https://huggingface.co/huawei-bayerlab/marigold-v2-0" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/weights.svg" alt="Weights"></a>&nbsp;
   <a href="https://twitter.com/antonobukhov1" target="_blank" rel="noopener noreferrer" style="display: inline-block;"><img src="assets/shields/follow.svg" alt="Follow"></a>
