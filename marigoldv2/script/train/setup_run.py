@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
+from accelerate import PartialState
+from accelerate.utils import broadcast_object_list
 from omegaconf import OmegaConf
 
 from marigoldv2.core.registry import REGISTRY
@@ -55,11 +57,12 @@ def setup_run():
     t_start = datetime.now()
     logging.info(f"Started at {t_start}")
     args = parse_args()
-    is_rank0 = int(os.environ.get("RANK", "0")) == 0
+    distributed_state = PartialState(cpu=args.no_cuda)
+    is_rank0 = distributed_state.is_main_process
 
     if args.resume_run is not None:
         logging.info(f"Resuming run: {args.resume_run}")
-        out_dir_run = os.path.dirname(os.path.dirname(os.path.dirname(args.resume_run)))
+        out_dir_run = str(Path(args.resume_run).resolve().parent.parent)
         cfg = OmegaConf.load(os.path.join(out_dir_run, "config.yaml"))
         if "use_paths_from" in cfg.paths:
             cfg.paths = cfg.paths[cfg.paths.use_paths_from]
@@ -74,7 +77,7 @@ def setup_run():
             experiment_name = f"{t_start.strftime('%y%m%dT%H%M%S')}_{experiment_name}"
         parent = args.output_dir if args.output_dir is not None else cfg.paths.out_dir
         out_dir_run = os.path.join(parent, experiment_name)
-        os.makedirs(out_dir_run, exist_ok=False)
+        out_dir_run = _create_run_directory(out_dir_run, distributed_state)
 
     out_dir_ckpt = os.path.join(out_dir_run, "checkpoint")
     out_dir_eval = os.path.join(out_dir_run, "evaluation")
@@ -106,6 +109,21 @@ def setup_run():
 
     REGISTRY["cfg"] = cfg
     return cfg
+
+
+def _create_run_directory(out_dir_run, distributed_state):
+    result = [out_dir_run, None]
+    if distributed_state.is_main_process:
+        try:
+            os.makedirs(out_dir_run, exist_ok=False)
+        except OSError as exc:
+            result[1] = exc
+
+    # Share rank 0's timestamped path and propagate failures instead of stranding peers.
+    out_dir_run, error = broadcast_object_list(result)
+    if error is not None:
+        raise error
+    return out_dir_run
 
 
 def snapshot_code(out_dir_run):
