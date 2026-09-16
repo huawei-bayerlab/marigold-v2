@@ -13,7 +13,6 @@ register_modules:
 - marigoldv2.experiments.20260316_qwen_depth.component_loader
 - marigoldv2.experiments.20260728_qwen_normals.data
 - marigoldv2.experiments.20260728_qwen_normals.network_graph
-- marigoldv2.experiments.20260728_qwen_normals.loss
 - marigoldv2.experiments.20260728_qwen_normals.validation
 
 window_matched_l1_loss_weight: 1.0
@@ -21,18 +20,13 @@ window_size: 5
 sinkhorn_iter: 5
 sinkhorn_tau: 0.1
 l1_gradient_weight: 0.0
-irepa_dinov3_spatial_loss_weight: 0.2
-irepa_teacher_input_key: normal_gt
-irepa_dinov3_model_name: facebook/dinov3-vitb16-pretrain-lvd1689m
-irepa_dinov3_input_size: 224
-irepa_spatial_norm_gamma: 0.7
-irepa_token_l1_weight: 1.0
-irepa_pairwise_weight: 1.0
-irepa_max_tokens_for_pairwise: 256
-irepa_use_student_projection: true
-irepa_projection_type: conv3x3
-irepa_student_feature_dim: 64
-irepa_teacher_feature_dim: 768
+dinov3_spatial_loss_weight: 0.2
+dinov3_model_name: facebook/dinov3-vitb16-pretrain-lvd1689m
+dinov3_input_size: 224
+dinov3_spatial_norm_gamma: 0.7
+dinov3_token_l1_weight: 1.0
+dinov3_pairwise_weight: 1.0
+dinov3_max_tokens_for_pairwise: 256
 
 scale: 1.0
 logging:
@@ -86,11 +80,6 @@ network_graph:
       predict_eps: false
       predict_vel: true
       timestep: 0.499
-      capture_hidden_states: true
-      hidden_state_indices:
-      - -1
-      - -8
-      hidden_state_key_prefix: qwen_dit_hidden_state
   QwenImageDecode:
     kwargs:
       input_key: lat_encoding
@@ -113,31 +102,18 @@ loss_graph:
     l1_gradient_weight: ${l1_gradient_weight}
     weight: ${window_matched_l1_loss_weight}
     loss_name: window_matched_normal_l1_loss
-  IREPADinoV3SpatialLoss:
+  DinoV3SpatialLoss:
     pred_key: out/normal_pred
     gt_key: normal_gt
-    teacher_input_key: ${irepa_teacher_input_key}
     mask_key: valid_mask
-    weight: ${irepa_dinov3_spatial_loss_weight}
-    loss_name: irepa_dinov3_gt_normals_spatial_loss
-    model_name: ${irepa_dinov3_model_name}
-    input_size: ${irepa_dinov3_input_size}
-    gamma: ${irepa_spatial_norm_gamma}
-    token_l1_weight: ${irepa_token_l1_weight}
-    pairwise_weight: ${irepa_pairwise_weight}
-    max_tokens_for_pairwise: ${irepa_max_tokens_for_pairwise}
-    student_feature_keys:
-    - out/qwen_dit_hidden_state_-1
-    - out/qwen_dit_hidden_state_-8
-    student_feature_weights:
-    - 1.0
-    - 0.7
-    use_student_projection: ${irepa_use_student_projection}
-    projection_type: ${irepa_projection_type}
-    student_feature_dim: ${irepa_student_feature_dim}
-    teacher_feature_dim: ${irepa_teacher_feature_dim}
-    projection_component_name: iREPAStudentProjector
-    use_cached_gt_tokens: false
+    weight: ${dinov3_spatial_loss_weight}
+    loss_name: dinov3_gt_normals_spatial_loss
+    model_name: ${dinov3_model_name}
+    input_size: ${dinov3_input_size}
+    gamma: ${dinov3_spatial_norm_gamma}
+    token_l1_weight: ${dinov3_token_l1_weight}
+    pairwise_weight: ${dinov3_pairwise_weight}
+    max_tokens_for_pairwise: ${dinov3_max_tokens_for_pairwise}
 optimization:
   max_iter: ${mul:${scale},30000}
   max_epoch: ${mul:${scale},100000}

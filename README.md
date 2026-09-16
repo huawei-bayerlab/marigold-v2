@@ -92,14 +92,14 @@ and in the training stage.
 | Checkpoint | Output | Training | Config |
 |---|---|---|---|
 | `depth/Log-stage2` (default) | affine-invariant log depth | Stage 1 → Stage 2 (SinkLoss, VAE decoder fine-tuned). The paper model. | `training_relative_log_depth_config_stage2.yaml` |
-| `depth/Log-stage1` | affine-invariant log depth | Stage 1 only: latent MSE + L1 + gradient + iREPA, 160k steps. Initialization for Stage 2 and layered fine-tuning. | `training_relative_log_depth_config.yaml` |
+| `depth/Log-stage1` | affine-invariant log depth | Stage 1 only: latent MSE + L1 + gradient + DINOv3 spatial perceptual loss, 160k steps. Initialization for Stage 2 and layered fine-tuning. | `training_relative_log_depth_config.yaml` |
 | `depth/Log-layered` | see-through log depth | `Log-stage1` fine-tuned with SinkLoss on layer 8 of LayeredDepth-Syn: predicts geometry behind glass. | `training_relative_log_depth_layered_config.yaml` |
 | `depth/Uniform-base` | affine-invariant linear depth (Marigold V1 style) | Stage 1 recipe, 30k steps. Parameterization ablation. | `training_relative_config.yaml` |
 | `depth/Disparity-base` | affine-invariant inverse depth | Stage 1 recipe with VAE decoder fine-tuning, 30k steps. Parameterization ablation. | `training_relative_disp_config.yaml` |
 | `depth/Disparity-layered` | see-through inverse depth | Stage 1 recipe on layer 8 of LayeredDepth-Syn. | `training_relative_disp_layered_config.yaml` |
 | `depth/Uniform-layered` | see-through linear depth | LayeredDepth-Syn variant of `Uniform-base`. | not included |
-| `normals` | camera-space unit normals | angular loss + iREPA + SinkLoss, VAE decoder fine-tuned, 30k steps | `training_normals.yaml` |
-| `albedo` | linear RGB albedo in [0, 1] | L1 + iREPA, VAE decoder fine-tuned, 30k steps | `training_albedo.yaml` |
+| `normals` | camera-space unit normals | angular loss + DINOv3 spatial perceptual loss + SinkLoss, VAE decoder fine-tuned, 30k steps | `training_normals.yaml` |
+| `albedo` | linear RGB albedo in [0, 1] | L1 + DINOv3 spatial perceptual loss, VAE decoder fine-tuned, 30k steps | `training_albedo.yaml` |
 
 Depth configs live in `marigoldv2/experiments/20260316_qwen_depth/`, the normals
 and albedo configs in `marigoldv2/experiments/20260728_qwen_normals/` and
@@ -261,7 +261,8 @@ Stage 1 of the depth model (160k steps) takes about five days, every other
 config (30k steps) about one day.
 
 **Data.** Depth trains on Hypersim and Virtual KITTI 2 as repackaged for
-Marigold V1; iREPA needs DINOv3, which is gated on Hugging Face (accept the
+Marigold V1. The DINOv3 spatial perceptual loss needs the DINOv3 checkpoint,
+which is gated on Hugging Face (accept the
 terms on the [model page](https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m),
 then `hf auth login`):
 
@@ -278,7 +279,7 @@ resume after interruption; see their READMEs under `scripts/`.
 **Reproducing the depth model.**
 
 ```bash
-# Stage 1: iREPA + pixel losses on Hypersim + vKITTI (160k steps)
+# Stage 1: DINOv3 spatial perceptual + pixel losses on Hypersim + vKITTI (160k steps)
 python marigoldv2/script/train/train.py \
   --config marigoldv2/experiments/20260316_qwen_depth/training_relative_log_depth_config.yaml \
   --output_dir output/train_runs --no_wandb

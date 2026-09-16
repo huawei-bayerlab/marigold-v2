@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from typing import Optional
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 try:
@@ -11,7 +10,7 @@ except Exception:
     AutoImageProcessor = None
     AutoModel = None
 
-from marigoldv2.core.registry import REGISTRY, get, register
+from marigoldv2.core.registry import register
 
 torch.backends.mkldnn.enabled = False
 
@@ -422,23 +421,14 @@ class MaskedL1GradientLoss:
 
 
 @register("loss")
-class IREPADinoV3SpatialLoss:
-    """
-    iREPA-inspired spatial alignment loss using frozen DINOv3 features.
-
-    This loss aligns predicted and target feature tokens while accentuating
-    spatial structure via (1) spatial normalization and (2) token-pair
-    similarity matching.
-    """
-
+class DinoV3SpatialLoss:
     def __init__(
         self,
         weight: float,
         pred_key: str,
         gt_key: str,
-        teacher_input_key: str = None,
         mask_key: str = None,
-        loss_name: str = "irepa_dinov3_spatial_loss",
+        loss_name: str = "dinov3_spatial_loss",
         model_name: str = "facebook/dinov3-vitb16-pretrain-lvd1689m",
         input_size: int = 224,
         gamma: float = 0.7,
@@ -446,22 +436,11 @@ class IREPADinoV3SpatialLoss:
         token_l1_weight: float = 1.0,
         pairwise_weight: float = 1.0,
         max_tokens_for_pairwise: int = 256,
-        student_feature_keys=None,
-        student_feature_weights=None,
-        use_student_projection: bool = True,
-        projection_type: str = "conv3x3",
-        student_feature_dim: int = 64,
-        teacher_feature_dim: int = None,
-        projection_component_name: str = None,
         dataset_names=None,
-        **kwargs,
     ):
         self.weight = float(weight)
         self.pred_key = pred_key
         self.gt_key = gt_key
-        self.teacher_input_key = (
-            str(teacher_input_key) if teacher_input_key is not None else str(gt_key)
-        )
         self.mask_key = mask_key
         self.loss_name = loss_name
         self.model_name = model_name
@@ -471,44 +450,6 @@ class IREPADinoV3SpatialLoss:
         self.token_l1_weight = float(token_l1_weight)
         self.pairwise_weight = float(pairwise_weight)
         self.max_tokens_for_pairwise = int(max_tokens_for_pairwise)
-
-        if student_feature_keys is None:
-            self.student_feature_keys = []
-        elif isinstance(student_feature_keys, Sequence) and not isinstance(
-            student_feature_keys, (str, bytes)
-        ):
-            self.student_feature_keys = [str(k) for k in student_feature_keys]
-        else:
-            self.student_feature_keys = [str(student_feature_keys)]
-
-        if student_feature_weights is None:
-            self.student_feature_weights = [1.0] * max(
-                1, len(self.student_feature_keys)
-            )
-        elif isinstance(student_feature_weights, Sequence) and not isinstance(
-            student_feature_weights, (str, bytes)
-        ):
-            self.student_feature_weights = [float(x) for x in student_feature_weights]
-        else:
-            self.student_feature_weights = [float(student_feature_weights)]
-
-        if len(self.student_feature_keys) > 0 and len(
-            self.student_feature_weights
-        ) != len(self.student_feature_keys):
-            if len(self.student_feature_weights) == 1:
-                self.student_feature_weights = self.student_feature_weights * len(
-                    self.student_feature_keys
-                )
-            else:
-                raise ValueError(
-                    "IREPADinoV3SpatialLoss: student_feature_weights must match student_feature_keys length."
-                )
-        self.use_student_projection = bool(use_student_projection)
-        self.projection_type = str(projection_type).lower()
-        self.student_feature_dim = int(student_feature_dim)
-        self.teacher_feature_dim = (
-            int(teacher_feature_dim) if teacher_feature_dim is not None else None
-        )
 
         if dataset_names is None:
             self.dataset_names = None
@@ -522,60 +463,6 @@ class IREPADinoV3SpatialLoss:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._feature_model = None
         self._image_processor = None
-        self._student_projector = None
-
-        if projection_component_name is None:
-            self.projection_component_name = f"{self.loss_name}_StudentProjector"
-        else:
-            self.projection_component_name = str(projection_component_name)
-
-        if self.use_student_projection and len(self.student_feature_keys) > 0:
-            # Default teacher dim from model family if not explicitly provided.
-            if self.teacher_feature_dim is None:
-                m = str(self.model_name).lower()
-                if "vitl" in m or "h16" in m or "7b" in m:
-                    self.teacher_feature_dim = 1024
-                elif "vitb" in m:
-                    self.teacher_feature_dim = 768
-                elif "vits" in m:
-                    self.teacher_feature_dim = 384
-                else:
-                    self.teacher_feature_dim = 768
-
-            if self.projection_type not in {"linear", "conv1x1", "conv3x3"}:
-                raise ValueError(
-                    f"Unsupported projection_type '{self.projection_type}'. Expected one of: linear, conv1x1, conv3x3"
-                )
-
-            proj = nn.ModuleDict()
-            for k in self.student_feature_keys:
-                key_name = k.replace("/", "__")
-                if self.projection_type == "linear":
-                    layer = nn.Linear(
-                        self.student_feature_dim, self.teacher_feature_dim, bias=False
-                    )
-                elif self.projection_type == "conv1x1":
-                    layer = nn.Conv2d(
-                        self.student_feature_dim,
-                        self.teacher_feature_dim,
-                        kernel_size=1,
-                        padding=0,
-                        bias=False,
-                    )
-                else:
-                    layer = nn.Conv2d(
-                        self.student_feature_dim,
-                        self.teacher_feature_dim,
-                        kernel_size=3,
-                        padding=1,
-                        bias=False,
-                    )
-                nn.init.xavier_uniform_(layer.weight)
-                proj[key_name] = layer
-
-            REGISTRY.setdefault("network_components", {})
-            REGISTRY["network_components"][self.projection_component_name] = proj
-            self._student_projector = proj
 
     def _resolve_key(self, batch, key):
         out = batch
@@ -588,7 +475,8 @@ class IREPADinoV3SpatialLoss:
             return
         if AutoModel is None or AutoImageProcessor is None:
             raise RuntimeError(
-                "IREPADinoV3SpatialLoss requires 'transformers' with AutoModel and AutoImageProcessor support."
+                "DinoV3SpatialLoss requires 'transformers' with AutoModel and "
+                "AutoImageProcessor support."
             )
 
         self._image_processor = AutoImageProcessor.from_pretrained(self.model_name)
@@ -720,51 +608,6 @@ class IREPADinoV3SpatialLoss:
         pair_mask = m.unsqueeze(2) * m.unsqueeze(1)
         return (diff * pair_mask).sum() / pair_mask.sum().clamp_min(1.0)
 
-    @staticmethod
-    def _as_tokens(x: torch.Tensor) -> torch.Tensor:
-        # Convert [B, C, H, W] -> [B, H*W, C], keep [B, T, D] as-is.
-        if x.ndim == 5 and x.shape[2] == 1:
-            x = x[:, :, 0]
-        if x.ndim == 4:
-            b, c, h, w = x.shape
-            return x.permute(0, 2, 3, 1).reshape(b, h * w, c)
-        if x.ndim == 3:
-            return x
-        raise ValueError(
-            f"Unsupported student feature shape for token conversion: {tuple(x.shape)}"
-        )
-
-    @staticmethod
-    def _as_feature_map(x: torch.Tensor) -> torch.Tensor:
-        # Convert [B, T, D] token sequences to [B, D, H, W] when T is square.
-        if x.ndim == 5 and x.shape[2] == 1:
-            x = x[:, :, 0]
-        if x.ndim == 4:
-            return x
-        if x.ndim == 3:
-            b, t, d = x.shape
-            hw = int(t**0.5)
-            if hw * hw != t:
-                raise ValueError(
-                    f"Cannot apply convolutional projection to non-square token sequence shape {tuple(x.shape)}."
-                )
-            return x.transpose(1, 2).reshape(b, d, hw, hw)
-        raise ValueError(
-            f"Unsupported student feature shape for map conversion: {tuple(x.shape)}"
-        )
-
-    @staticmethod
-    def _match_token_count(tokens: torch.Tensor, target_tokens: int) -> torch.Tensor:
-        # Uniform resampling over token axis for mismatched token counts.
-        t = tokens.shape[1]
-        if t == target_tokens:
-            return tokens
-        if target_tokens <= 0:
-            return tokens
-        idx = torch.linspace(0, max(t - 1, 0), target_tokens, device=tokens.device)
-        idx = idx.round().long().clamp(0, max(t - 1, 0))
-        return tokens.index_select(1, idx)
-
     def __call__(self, batch):
         self._lazy_init_backbone()
 
@@ -800,67 +643,18 @@ class IREPADinoV3SpatialLoss:
             gt_out = self._feature_model(pixel_values=gt_in)
         gt_tokens = self._extract_patch_tokens(gt_out)
 
-        projector = None
-        if self.use_student_projection and len(self.student_feature_keys) > 0:
-            projector = get("network_components", self.projection_component_name)
-
-        # Align internal DiT features when student_feature_keys are given,
-        # otherwise the DINOv3 features of the prediction itself.
-        student_tokens_list = []
-        student_weights = []
-        if len(self.student_feature_keys) > 0:
-            for idx_layer, (k, w) in enumerate(
-                zip(self.student_feature_keys, self.student_feature_weights)
-            ):
-                try:
-                    feat = self._resolve_key(batch, k)
-                except Exception:
-                    continue
-                if not torch.is_tensor(feat):
-                    continue
-                feat = feat.to(self.device).float()
-
-                if projector is not None:
-                    proj_key = self.student_feature_keys[idx_layer].replace("/", "__")
-                    if proj_key in projector:
-                        layer = projector[proj_key]
-                        if self.projection_type == "linear":
-                            feat_tok = self._as_tokens(feat)
-                            if feat_tok.shape[-1] != self.student_feature_dim:
-                                raise ValueError(
-                                    f"{self.loss_name}: student feature dim mismatch for {self.student_feature_keys[idx_layer]}: "
-                                    f"expected {self.student_feature_dim}, got {feat_tok.shape[-1]}"
-                                )
-                            feat = layer(feat_tok)
-                        else:
-                            feat_map = self._as_feature_map(feat)
-                            if feat_map.shape[1] != self.student_feature_dim:
-                                raise ValueError(
-                                    f"{self.loss_name}: student feature dim mismatch for {self.student_feature_keys[idx_layer]}: "
-                                    f"expected {self.student_feature_dim}, got {feat_map.shape[1]}"
-                                )
-                            feat = layer(feat_map)
-
-                feat = self._as_tokens(feat)
-                feat = self._match_token_count(feat, gt_tokens.shape[1])
-                student_tokens_list.append(feat)
-                student_weights.append(float(w))
-
-        if len(student_tokens_list) == 0:
-            pred_in = self._to_dino_inputs(pred)
-            pred_out = self._feature_model(pixel_values=pred_in)
-            pred_tokens = self._extract_patch_tokens(pred_out)
-            student_tokens_list = [pred_tokens]
-            student_weights = [1.0]
+        pred_in = self._to_dino_inputs(pred)
+        pred_out = self._feature_model(pixel_values=pred_in)
+        pred_tokens = self._extract_patch_tokens(pred_out)
+        student_tokens_list = [pred_tokens]
+        student_weights = [1.0]
 
         gt_tokens = self._spatial_normalize(gt_tokens)
 
         total_w = sum(student_weights) if len(student_weights) > 0 else 1.0
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
 
-        for idx_layer, (s_tok, w) in enumerate(
-            zip(student_tokens_list, student_weights)
-        ):
+        for s_tok, w in zip(student_tokens_list, student_weights):
             s_tok = self._spatial_normalize(s_tok)
             token_mask = (
                 self._build_token_mask(mask, num_tokens=s_tok.shape[1])
@@ -868,7 +662,6 @@ class IREPADinoV3SpatialLoss:
                 else None
             )
 
-            # Token L1 is only well-defined when feature dims match.
             if s_tok.shape[-1] == gt_tokens.shape[-1]:
                 l_tok = self._token_l1(s_tok, gt_tokens, token_mask)
             else:

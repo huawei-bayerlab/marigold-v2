@@ -27,7 +27,7 @@ scripts/download_assets.py               all Hugging Face downloads into assets/
 scripts/hypersim_{normals,albedo}/       dataset builders that run the Marigold V1.1 preprocessors scene by scene
 marigoldv2/core/                         registry + builder (compose registered classes from config)
 marigoldv2/dataset/                      GenericDataset, manifest loaders, per-sample transforms, collate
-marigoldv2/loss/loss.py                  latent MSE, masked L1, gradient L1, SinkLoss (WindowMatchedL1Loss), iREPA
+marigoldv2/loss/loss.py                  latent MSE, masked L1, gradient L1, SinkLoss (WindowMatchedL1Loss), DINOv3 spatial perceptual loss
 marigoldv2/validation/                   validation steps (inference, metrics, visualization, .npy writers), metrics
 marigoldv2/trainer/generic_trainer.py    training loop (accelerate), validation, checkpointing
 marigoldv2/script/train/                 train.py entry point, argument parsing, checkpoint save/load hooks
@@ -90,7 +90,6 @@ assets/                                  downloads (git-ignored) plus tracked ex
   applies quantization and LoRA from `optimization.quantization` / `optimization.lora`.
 - `QwenImageEdit2509Step` runs one transformer pass at t = 499/1000 computed in
   bf16; keep that expression as is, it matches the trained checkpoints.
-  `capture_hidden_states` exposes transformer features for iREPA.
 - The VAE encoder samples the latent distribution, so outputs depend on the
   seed (`--seed` in `scripts/infer.py`, `random_seed` in configs).
 - Checkpoints are `trainables.safetensors` with keys `<component>.<param>`

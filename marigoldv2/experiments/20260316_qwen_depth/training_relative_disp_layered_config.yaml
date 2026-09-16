@@ -17,19 +17,15 @@ register_modules:
 latent_mse_loss_weight: 1.0
 masked_l1_loss_weight: 1.0
 spatial_rectification_loss_weight: 5.0
-irepa_dinov3_spatial_loss_weight: 0.2
+dinov3_spatial_loss_weight: 0.2
 
-# iREPA (DINOv3 feature alignment)
-irepa_dinov3_model_name: ${oc.env:DEPTH_ASSETS_DIR,./assets}/checkpoints/dinov3-vitb16-pretrain-lvd1689m
-irepa_dinov3_input_size: 224
-irepa_spatial_norm_gamma: 0.7
-irepa_token_l1_weight: 1.0
-irepa_pairwise_weight: 1.0
-irepa_max_tokens_for_pairwise: 256
-irepa_use_student_projection: true
-irepa_projection_type: conv3x3
-irepa_student_feature_dim: 64
-irepa_teacher_feature_dim: 768
+# DINOv3 spatial perceptual loss
+dinov3_model_name: ${oc.env:DEPTH_ASSETS_DIR,./assets}/checkpoints/dinov3-vitb16-pretrain-lvd1689m
+dinov3_input_size: 224
+dinov3_spatial_norm_gamma: 0.7
+dinov3_token_l1_weight: 1.0
+dinov3_pairwise_weight: 1.0
+dinov3_max_tokens_for_pairwise: 256
 scale: 1.0
 
 # ---- Logging ----
@@ -108,9 +104,6 @@ network_graph:
       predict_vel: true
       num_inference_steps: 1
       guidance_scale: 1.0
-      capture_hidden_states: true
-      hidden_state_indices: [-1, -8]
-      hidden_state_key_prefix: qwen_dit_hidden_state
   QwenImageDecode:
     kwargs:
       output_key: pixel_pred
@@ -139,26 +132,17 @@ loss_graph:
     dataset_names:
       - layereddepth_syn_l8_train_inv_depth_768
       - layereddepth_syn_l8_val_inv_depth_768
-  IREPADinoV3SpatialLoss:
+  DinoV3SpatialLoss:
     pred_key: out/inv_depth_rel_pred_m11
     gt_key: inv_depth_rel_m11
     mask_key: valid_mask
-    weight: ${irepa_dinov3_spatial_loss_weight}
-    model_name: ${irepa_dinov3_model_name}
-    input_size: ${irepa_dinov3_input_size}
-    gamma: ${irepa_spatial_norm_gamma}
-    token_l1_weight: ${irepa_token_l1_weight}
-    pairwise_weight: ${irepa_pairwise_weight}
-    max_tokens_for_pairwise: ${irepa_max_tokens_for_pairwise}
-    student_feature_keys:
-      - out/qwen_dit_hidden_state_-1
-      - out/qwen_dit_hidden_state_-8
-    student_feature_weights: [1.0, 0.7]
-    use_student_projection: ${irepa_use_student_projection}
-    projection_type: ${irepa_projection_type}
-    student_feature_dim: ${irepa_student_feature_dim}
-    teacher_feature_dim: ${irepa_teacher_feature_dim}
-    projection_component_name: iREPAStudentProjector
+    weight: ${dinov3_spatial_loss_weight}
+    model_name: ${dinov3_model_name}
+    input_size: ${dinov3_input_size}
+    gamma: ${dinov3_spatial_norm_gamma}
+    token_l1_weight: ${dinov3_token_l1_weight}
+    pairwise_weight: ${dinov3_pairwise_weight}
+    max_tokens_for_pairwise: ${dinov3_max_tokens_for_pairwise}
 
 # ---- Optimization ----
 optimization:
