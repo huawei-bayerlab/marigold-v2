@@ -228,6 +228,18 @@ python scripts/download_assets.py
 bash evaluation/depth_see/run_hypersim_origres_edge_eval.sh        # SEE_1,3,5,7; paper: 0.352 / 0.333 / 0.320 for k = 3, 5, 7
 ```
 
+**See-through depth** on LayeredDepth-Syn validation layer 8.
+
+```bash
+python scripts/download_assets.py --include-layereddepth-syn
+bash evaluation/depth_see_through/run_layereddepth_l8_eval.sh        # Log-stage2 and Log-layered
+```
+
+| Checkpoint | AbsRel ↓ | δ1 ↑ |
+|---|---:|---:|
+| Log-stage2 | 13.66 | 83.96 |
+| Log-layered | **8.17** | **92.65** |
+
 **Surface normals** on NYUv2, ScanNet, iBims-1, and Sintel:
 
 ```bash
@@ -345,7 +357,7 @@ marigoldv2/              training framework: core registry, datasets, losses, tr
   experiments/           one folder per released model family with its configs and task-specific modules
   config/datasets/       dataset definitions shared by the training configs
   script/train/train.py  training entry point
-evaluation/              benchmark launchers (depth, depth_see, normals, normals_saee, albedo), their configs, data splits
+evaluation/              benchmark launchers (depth, depth_see, depth_see_through, normals, normals_saee, albedo), their configs, data splits
 evaluation/src/          Marigold V1 benchmark datasets and metrics
 assets/                  downloads (git-ignored) plus tracked example images
 ```
@@ -353,9 +365,9 @@ assets/                  downloads (git-ignored) plus tracked example images
 ## Checklist
 
 - [ ] Depth completion code
-- [ ] See-through evaluation
+- [x] See-through evaluation
 - [ ] Diffusers integration
-- [ ] ComfyUI plugin
+- [x] ComfyUI plugin
 
 ## Troubleshooting
 
