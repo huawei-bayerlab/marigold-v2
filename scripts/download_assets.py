@@ -82,7 +82,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-dinov3",
         action="store_true",
-        help="Also download the gated DINOv3 checkpoint used by iREPA (needs `hf auth login`).",
+        help="Also download the gated DINOv3 checkpoint used by DinoV3SpatialLoss "
+        "(needs `hf auth login`).",
     )
     parser.add_argument(
         "--include-layereddepth-syn",
@@ -498,7 +499,7 @@ def main() -> None:
                 )
             else:
                 print(
-                    "[skip] DINOv3 was requested for iREPA, but no Hugging Face "
+                    "[skip] DINOv3 was requested, but no Hugging Face "
                     "token is available. Run `hf auth login`, accept the DINOv3 "
                     "terms, and rerun with `--include-dinov3`.",
                     flush=True,
