@@ -154,6 +154,13 @@ and extract each tar archive into its containing directory:
 )
 ```
 
+For **depth completion**, download and preprocess the iBims-1, NYUv2, KITTI DC,
+and DDAD datasets:
+
+```bash
+bash scripts/marigold_dc/download_and_preprocess_depth_completion.sh
+```
+
 For **normal** estimation, create the destination directory and download the
 official Marigold evaluation archive:
 
@@ -266,6 +273,23 @@ bash evaluation/albedo/run_qwen_albedo_infer.sh assets/checkpoints/Marigold-V2/a
 bash evaluation/albedo/run_qwen_albedo_eval.sh output/eval_runs/albedo/hypersim_test_albedo_qwen_native output/eval_runs/albedo/metrics
 ```
 
+**Depth completion** on iBims-1, NYUv2, KITTI-DC, and DDAD. The guide in
+[evaluation/depth_completion/REPRODUCING_DEPTH_COMPLETION.md](evaluation/depth_completion/REPRODUCING_DEPTH_COMPLETION.md)
+covers the data, the protocol, and the per-sample reference results. Cells are grouped by the GPU
+memory they need: 8 of the 11 fit a 32 GB card, the other 3 need 48 to 80 GB.
+
+```bash
+GPUS=0,1,2,3 bash evaluation/depth_completion/reproduce_table.sh subset 32gb   # check the setup against the reference results, ~45 min on 4 GPUs
+bash evaluation/depth_completion/reproduce_table.sh full 32gb                  # the 8 cells that fit a 32 GB card
+bash evaluation/depth_completion/reproduce_table.sh full 80gb                  # the remaining 3 cells
+```
+
+| MAE (m) ↓ | iBims-1 | NYUv2 | KITTI-DC | DDAD |
+|---|---|---|---|---|
+| Marigold-V2-DC (LoRA) | 0.042 | 0.045 | 0.349 | 1.549 |
+| + high-res inference | 0.034 | 0.044 | 0.340 | 1.465 |
+| + tiled local adaptation | 0.030 | 0.044 | 0.318 | 1.226 |
+
 ## Training
 
 All released models were trained on a single 32 GB GPU with batch size 1.
@@ -352,19 +376,19 @@ folders, add an output adapter to `marigoldv2/validation/folder_steps.py` and a
 
 ```
 setup/setup_env.sh       creates the conda environment and installs the package
-scripts/                 infer.py (inference on image folders), download_assets.py, Hypersim dataset builders
+scripts/                 infer.py, download_assets.py, Marigold-DC and Hypersim dataset builders
 marigoldv2/              training framework: core registry, datasets, losses, trainer, validation
   experiments/           one folder per released model family with its configs and task-specific modules
   config/datasets/       dataset definitions shared by the training configs
   script/train/train.py  training entry point
-evaluation/              benchmark launchers (depth, depth_see, depth_see_through, normals, normals_saee, albedo), their configs, data splits
+evaluation/              benchmark launchers (depth, depth_completion, depth_see, depth_see_through, normals, normals_saee, albedo), their configs, data splits
 evaluation/src/          Marigold V1 benchmark datasets and metrics
 assets/                  downloads (git-ignored) plus tracked example images
 ```
 
 ## Checklist
 
-- [ ] Depth completion code
+- [x] Depth completion code
 - [x] See-through evaluation
 - [ ] Diffusers integration
 - [x] ComfyUI plugin
@@ -375,7 +399,7 @@ assets/                  downloads (git-ignored) plus tracked example images
 |---|---|
 | `CUDA out of memory` | Inference needs about 17 GB at 1024² and 29 GB at 2048². Reduce `--width` and `--height`; both must stay multiples of 16. |
 | The same image gives slightly different predictions | The VAE encoder samples its latent. Pass `--seed` to make runs reproducible. |
-| A config cannot find a dataset or a checkpoint | Point `DEPTH_ASSETS_DIR` at your assets folder. Download checkpoints and training data with `python scripts/download_assets.py`; for depth and normals benchmarks, follow [Evaluation](#evaluation). |
+| A config cannot find a dataset or a checkpoint | Point `DEPTH_ASSETS_DIR` at your assets folder. Download checkpoints and training data with `python scripts/download_assets.py`; for depth, depth completion, and normals benchmarks, follow [Evaluation](#evaluation). |
 
 ## Contributing
 

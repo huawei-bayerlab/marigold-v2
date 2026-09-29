@@ -11,3 +11,6 @@ marigoldv2/trainer/__init__.py.
 The evaluation protocol for the zero-shot depth benchmarks follows Pixel-Perfect Depth
 (https://github.com/gangweix/pixel-perfect-depth), and the Sintel normals protocol follows
 Lotus-2 (https://github.com/EnVision-Research/Lotus).
+
+The depth-completion preprocessing workflow follows the dataset layout and
+preprocessing protocol from Marigold-DC (https://github.com/prs-eth/Marigold-DC).

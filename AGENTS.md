@@ -25,6 +25,7 @@ their evaluation code and dataset preprocessing are reused, see NOTICE.
 scripts/infer.py                         inference on an image folder; builds a config and runs evaluate_pipeline
 scripts/download_assets.py               all Hugging Face downloads into assets/
 scripts/hypersim_{normals,albedo}/       dataset builders that run the Marigold V1.1 preprocessors scene by scene
+scripts/marigold_dc/                     downloads and preprocesses the four depth-completion benchmarks (Marigold-DC layout)
 marigoldv2/core/                         registry + builder (compose registered classes from config)
 marigoldv2/dataset/                      GenericDataset, manifest loaders, per-sample transforms, collate
 marigoldv2/loss/loss.py                  latent MSE, masked L1, gradient L1, SinkLoss (WindowMatchedL1Loss), DINOv3 spatial perceptual loss
@@ -36,6 +37,7 @@ marigoldv2/config/datasets/              dataset YAMLs referenced by training co
 evaluation/config/inference_depth.yaml   the model definition used for inference
 evaluation/depth/                        five zero-shot depth benchmarks (inference -> subsets -> eval.py -> summary)
 evaluation/depth_see/                    Soft Edge Error on Hypersim at native resolution
+evaluation/depth_completion/             test-time LoRA depth completion on iBims-1, NYUv2, KITTI-DC, DDAD; see its REPRODUCING guide
 evaluation/normals/, normals_saee/       normals benchmarks and Hypersim soft angular edge error
 evaluation/albedo/                       Hypersim albedo PSNR/SSIM/LPIPS
 evaluation/src/                          Marigold V1 benchmark datasets, alignment, metrics (derived code, keep headers)

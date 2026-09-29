@@ -1,0 +1,20 @@
+{
+  "ibims1": {
+    "dataset_root": "assets/datasets/marigold_depth_completion/ibims1",
+    "n": 100
+  },
+  "nyudepthv2": {
+    "dataset_root": "assets/datasets/marigold_depth_completion/nyudepthv2",
+    "n": 654
+  },
+  "kittidc": {
+    "dataset_root": "assets/datasets/marigold_depth_completion/kittidc",
+    "split_file": "evaluation/depth_completion/data_split/kittidc_dc.txt",
+    "n": 150
+  },
+  "ddad": {
+    "dataset_root": "assets/datasets/marigold_depth_completion/ddad",
+    "split_file": "evaluation/depth_completion/data_split/ddad_dc.txt",
+    "n": 150
+  }
+}
