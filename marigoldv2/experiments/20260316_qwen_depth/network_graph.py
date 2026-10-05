@@ -107,9 +107,7 @@ class QwenImageEdit2509Step:
     Reads normalized VAE latents from ``batch["out"]["lat_encoding"]`` and the
     precomputed prompt embeddings ``<embed_dir>/{prefix}_prompt_embeds.pt`` and
     ``{prefix}_prompt_mask.pt``. Writes the predicted latents back to
-    ``batch["out"]["lat_encoding"]``. With ``capture_hidden_states`` the
-    selected transformer hidden states are stored under
-    ``batch["out"]["{hidden_state_key_prefix}_{index}"]`` for iREPA.
+    ``batch["out"]["lat_encoding"]``.
     """
 
     def __init__(self, kwargs=None):
@@ -127,11 +125,6 @@ class QwenImageEdit2509Step:
 
         self.predict_eps = kwargs.get("predict_eps", False)
         self.predict_vel = kwargs.get("predict_vel", True)
-        self.capture_hidden_states = bool(kwargs.get("capture_hidden_states", False))
-        self.hidden_state_indices = list(kwargs.get("hidden_state_indices", [-1]))
-        self.hidden_state_key_prefix = str(
-            kwargs.get("hidden_state_key_prefix", "qwen_dit_hidden_state")
-        )
 
     @staticmethod
     def _match_batch(t, B):
@@ -191,24 +184,7 @@ class QwenImageEdit2509Step:
             else contextlib.nullcontext()
         )
         with cache_ctx:
-            if self.capture_hidden_states:
-                try:
-                    out_obj = diffuser(
-                        **call_kwargs, output_hidden_states=True, return_dict=True
-                    )
-                    model_pred = out_obj.sample
-                    hidden_states = getattr(out_obj, "hidden_states", None)
-                    if hidden_states is not None:
-                        n = len(hidden_states)
-                        for idx in self.hidden_state_indices:
-                            resolved = idx if idx >= 0 else n + idx
-                            if 0 <= resolved < n:
-                                key = f"{self.hidden_state_key_prefix}_{idx}"
-                                batch["out"][key] = hidden_states[resolved]
-                except TypeError:  # transformer without output_hidden_states
-                    model_pred = diffuser(**call_kwargs, return_dict=False)[0]
-            else:
-                model_pred = diffuser(**call_kwargs, return_dict=False)[0]
+            model_pred = diffuser(**call_kwargs, return_dict=False)[0]
 
         temporal_downsample = vae.config.get("temperal_downsample", None)
         vae_scale_factor = (
