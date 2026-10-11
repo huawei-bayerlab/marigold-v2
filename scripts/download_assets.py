@@ -489,6 +489,9 @@ def main() -> None:
             "Qwen/Qwen-Image-Edit-2509",
             checkpoints / "Qwen-Image-Edit-2509",
             repo_type="model",
+            # Only transformer/ and vae/ are loaded; the text encoder is replaced
+            # by the precomputed prompt embeddings.
+            allow_patterns=["transformer/*", "vae/*"],
         )
         if args.include_dinov3:
             if get_token():
